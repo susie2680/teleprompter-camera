@@ -214,7 +214,7 @@ function createRecordingStream() {
   recordingContext = recordingCanvas.getContext("2d", { alpha: false });
 
   const paint = () => {
-    drawVideoContain(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
+    drawVideoCover(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
     drawFrame = requestAnimationFrame(paint);
   };
   paint();
@@ -247,7 +247,7 @@ function getRecordingSize() {
     : { width: 1920, height: 1080 };
 }
 
-function drawVideoContain(context, video, targetWidth, targetHeight) {
+function drawVideoCover(context, video, targetWidth, targetHeight) {
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
   if (!sourceWidth || !sourceHeight) return;
@@ -255,28 +255,25 @@ function drawVideoContain(context, video, targetWidth, targetHeight) {
   const sourceRatio = sourceWidth / sourceHeight;
   const targetRatio = targetWidth / targetHeight;
 
-  let drawWidth = targetWidth;
-  let drawHeight = targetHeight;
-  let drawX = 0;
-  let drawY = 0;
+  let cropWidth = sourceWidth;
+  let cropHeight = sourceHeight;
+  let cropX = 0;
+  let cropY = 0;
 
   if (sourceRatio > targetRatio) {
-    drawHeight = targetWidth / sourceRatio;
-    drawY = (targetHeight - drawHeight) / 2;
+    cropWidth = sourceHeight * targetRatio;
+    cropX = (sourceWidth - cropWidth) / 2;
   } else {
-    drawWidth = targetHeight * sourceRatio;
-    drawX = (targetWidth - drawWidth) / 2;
+    cropHeight = sourceWidth / targetRatio;
+    cropY = (sourceHeight - cropHeight) / 2;
   }
 
-  context.fillStyle = "#000";
-  context.fillRect(0, 0, targetWidth, targetHeight);
   context.save();
   if (mirrorInput.checked) {
     context.translate(targetWidth, 0);
     context.scale(-1, 1);
-    drawX = targetWidth - drawX - drawWidth;
   }
-  context.drawImage(video, 0, 0, sourceWidth, sourceHeight, drawX, drawY, drawWidth, drawHeight);
+  context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
   context.restore();
 }
 
