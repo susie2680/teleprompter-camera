@@ -150,8 +150,13 @@ async function startRecording() {
   recorder.addEventListener("dataavailable", (event) => {
     if (event.data && event.data.size > 0) recordedChunks.push(event.data);
   });
-  recorder.addEventListener("stop", () => saveRecording(mimeType));
-  recorder.start(1000);
+  recorder.addEventListener("stop", () => {
+    saveRecording(mimeType);
+    stopCanvasRecording();
+    recorder = null;
+    recordButton.disabled = false;
+  });
+  recorder.start();
 
   recordingStartedAt = Date.now();
   timerId = window.setInterval(updateTimer, 250);
@@ -166,10 +171,12 @@ async function startRecording() {
 
 function stopRecording() {
   if (recorder && recorder.state !== "inactive") {
+    recordButton.disabled = true;
+    statusText.textContent = "正在保存视频";
     recorder.stop();
+  } else {
+    stopCanvasRecording();
   }
-  recorder = null;
-  stopCanvasRecording();
   stopScroll();
   window.clearInterval(timerId);
   timerId = null;
