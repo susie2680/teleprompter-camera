@@ -242,25 +242,10 @@ function stopCanvasRecording() {
 
 function getRecordingSize() {
   const rect = preview.getBoundingClientRect();
-  const width = Math.max(1, rect.width);
-  const height = Math.max(1, rect.height);
-  const isPortrait = height >= width;
-
-  if (isPortrait) {
-    return {
-      width: 1080,
-      height: toEven(Math.round(1080 * (height / width)))
-    };
-  }
-
-  return {
-    width: 1920,
-    height: toEven(Math.round(1920 * (height / width)))
-  };
-}
-
-function toEven(value) {
-  return value % 2 === 0 ? value : value + 1;
+  const isPortrait = rect.height >= rect.width;
+  return isPortrait
+    ? { width: 1080, height: 1920 }
+    : { width: 1920, height: 1080 };
 }
 
 function drawVideoLikePreview(context, video, targetWidth, targetHeight) {
