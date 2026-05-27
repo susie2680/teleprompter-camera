@@ -137,7 +137,10 @@ async function startRecording() {
     return;
   }
 
+  resetScroll();
   await runCountdown();
+  countdown.hidden = true;
+  countdown.style.display = "none";
   recordedChunks = [];
   downloadLink.hidden = true;
   downloadLink.removeAttribute("href");
@@ -212,7 +215,7 @@ function createRecordingStream() {
   recordingContext = recordingCanvas.getContext("2d", { alpha: false });
 
   const paint = () => {
-    drawVideoCover(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
+    drawVideoLikePreview(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
     drawFrame = requestAnimationFrame(paint);
   };
   paint();
@@ -238,15 +241,33 @@ function stopCanvasRecording() {
 }
 
 function getRecordingSize() {
-  const isPortrait = window.innerHeight >= window.innerWidth;
-  return isPortrait
-    ? { width: 1080, height: 1920 }
-    : { width: 1920, height: 1080 };
+  const rect = preview.getBoundingClientRect();
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  const isPortrait = height >= width;
+
+  if (isPortrait) {
+    return {
+      width: 1080,
+      height: toEven(Math.round(1080 * (height / width)))
+    };
+  }
+
+  return {
+    width: 1920,
+    height: toEven(Math.round(1920 * (height / width)))
+  };
 }
 
-function drawVideoCover(context, video, targetWidth, targetHeight) {
+function toEven(value) {
+  return value % 2 === 0 ? value : value + 1;
+}
+
+function drawVideoLikePreview(context, video, targetWidth, targetHeight) {
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
+  if (!sourceWidth || !sourceHeight) return;
+
   const sourceRatio = sourceWidth / sourceHeight;
   const targetRatio = targetWidth / targetHeight;
 
@@ -263,7 +284,13 @@ function drawVideoCover(context, video, targetWidth, targetHeight) {
     cropY = (sourceHeight - cropHeight) / 2;
   }
 
+  context.save();
+  if (mirrorInput.checked) {
+    context.translate(targetWidth, 0);
+    context.scale(-1, 1);
+  }
   context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
+  context.restore();
 }
 
 function startScroll() {
@@ -315,12 +342,14 @@ function stepScroll(now) {
 }
 
 async function runCountdown() {
+  countdown.hidden = false;
+  countdown.style.display = "grid";
   for (const value of ["3", "2", "1"]) {
     countdown.textContent = value;
-    countdown.hidden = false;
     await wait(700);
   }
   countdown.hidden = true;
+  countdown.style.display = "none";
 }
 
 function updateTimer() {

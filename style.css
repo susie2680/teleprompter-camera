@@ -187,6 +187,10 @@ input {
   text-shadow: 0 8px 34px rgba(0, 0, 0, 0.74);
 }
 
+.countdown[hidden] {
+  display: none;
+}
+
 .controls {
   position: relative;
   z-index: 5;
