@@ -69,7 +69,11 @@ function syncScript() {
 
 function applyVisualSettings() {
   scriptText.style.fontSize = `${fontInput.value}px`;
-  document.documentElement.style.setProperty("--prompt-bg", `rgba(7, 9, 13, ${Number(opacityInput.value) / 100})`);
+  const promptOpacity = Number(opacityInput.value) / 100;
+  document.documentElement.style.setProperty("--prompt-bg", `rgba(7, 9, 13, ${promptOpacity})`);
+  document.documentElement.style.setProperty("--prompt-border", `rgba(255, 255, 255, ${promptOpacity * 0.28})`);
+  document.documentElement.style.setProperty("--prompt-shadow", `rgba(0, 0, 0, ${promptOpacity * 0.42})`);
+  document.documentElement.style.setProperty("--prompt-blur", promptOpacity < 0.08 ? "none" : "blur(8px)");
   teleprompter.classList.remove("position-top", "position-middle", "position-bottom");
   teleprompter.classList.add(`position-${positionInput.value}`);
   preview.classList.toggle("mirrored", mirrorInput.checked);
@@ -145,14 +149,13 @@ async function startRecording() {
   downloadLink.removeAttribute("href");
   downloadLink.removeAttribute("download");
 
-  recordingStream = createRecordingStream();
+  recordingStream = stream;
   recorder = new MediaRecorder(recordingStream, { mimeType });
   recorder.addEventListener("dataavailable", (event) => {
     if (event.data && event.data.size > 0) recordedChunks.push(event.data);
   });
   recorder.addEventListener("stop", () => {
     saveRecording(mimeType);
-    stopCanvasRecording();
     recorder = null;
     recordButton.disabled = false;
   });
@@ -174,8 +177,6 @@ function stopRecording() {
     recordButton.disabled = true;
     statusText.textContent = "正在保存视频";
     recorder.stop();
-  } else {
-    stopCanvasRecording();
   }
   stopScroll();
   window.clearInterval(timerId);
