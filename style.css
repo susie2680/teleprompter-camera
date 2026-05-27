@@ -251,6 +251,7 @@ button:disabled {
   border-radius: 10px;
   background: var(--panel-strong);
   color: var(--text);
+  font-size: 16px;
 }
 
 .field textarea {
@@ -268,6 +269,7 @@ button:disabled {
 .field input[type="range"] {
   width: 100%;
   accent-color: var(--accent);
+  font-size: 16px;
 }
 
 .grid {

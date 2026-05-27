@@ -90,6 +90,7 @@ async function toggleCamera() {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: "user" },
+        frameRate: { ideal: 24, max: 30 },
         resizeMode: { ideal: "none" }
       },
       audio: {
@@ -134,8 +135,8 @@ async function toggleRecording() {
 async function startRecording() {
   if (!stream) return;
 
-  const mimeType = getSupportedMimeType();
-  if (!mimeType) {
+  const recorderOptions = getRecorderOptions();
+  if (!window.MediaRecorder) {
     alert("当前浏览器不支持 MediaRecorder 录制。建议换 Safari/Chrome 最新版，或先用电脑浏览器测试。");
     return;
   }
@@ -150,12 +151,12 @@ async function startRecording() {
   downloadLink.removeAttribute("download");
 
   recordingStream = stream;
-  recorder = new MediaRecorder(recordingStream, { mimeType });
+  recorder = new MediaRecorder(recordingStream, recorderOptions);
   recorder.addEventListener("dataavailable", (event) => {
     if (event.data && event.data.size > 0) recordedChunks.push(event.data);
   });
   recorder.addEventListener("stop", () => {
-    saveRecording(mimeType);
+    saveRecording(recorder.mimeType || recorderOptions.mimeType || "video/mp4");
     recorder = null;
     recordButton.disabled = false;
   });
@@ -176,6 +177,9 @@ function stopRecording() {
   if (recorder && recorder.state !== "inactive") {
     recordButton.disabled = true;
     statusText.textContent = "正在保存视频";
+    try {
+      recorder.requestData();
+    } catch {}
     recorder.stop();
   }
   stopScroll();
@@ -199,7 +203,14 @@ function saveRecording(mimeType) {
   downloadLink.textContent = `下载录制视频（${extension.toUpperCase()}）`;
 }
 
-function getSupportedMimeType() {
+function getRecorderOptions() {
+  const baseOptions = {
+    audioBitsPerSecond: 64000,
+    videoBitsPerSecond: 1500000
+  };
+
+  if (isIOS()) return baseOptions;
+
   const types = [
     "video/mp4;codecs=h264,aac",
     "video/mp4",
@@ -207,7 +218,13 @@ function getSupportedMimeType() {
     "video/webm;codecs=vp8,opus",
     "video/webm"
   ];
-  return types.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type));
+  const mimeType = types.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type));
+  return mimeType ? { ...baseOptions, mimeType } : baseOptions;
+}
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 function createRecordingStream() {
