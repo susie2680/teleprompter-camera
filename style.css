@@ -26,7 +26,6 @@ body {
 
 body {
   overflow-x: hidden;
-  padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 72px));
 }
 
 button,
@@ -195,19 +194,20 @@ input {
 .controls {
   position: relative;
   z-index: 5;
-  padding: 14px 14px max(112px, calc(env(safe-area-inset-bottom) + 92px));
+  padding: 14px 14px max(18px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
 
 .primary-actions {
-  position: sticky;
-  bottom: max(78px, calc(env(safe-area-inset-bottom) + 66px));
-  z-index: 8;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 6;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 button,
