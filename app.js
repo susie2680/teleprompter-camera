@@ -85,9 +85,8 @@ async function toggleCamera() {
     statusText.textContent = "正在请求相机权限";
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: "user",
-        width: { ideal: 1080 },
-        height: { ideal: 1920 }
+        facingMode: { ideal: "user" },
+        resizeMode: { ideal: "none" }
       },
       audio: {
         echoCancellation: true,
@@ -215,7 +214,7 @@ function createRecordingStream() {
   recordingContext = recordingCanvas.getContext("2d", { alpha: false });
 
   const paint = () => {
-    drawVideoLikePreview(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
+    drawVideoContain(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
     drawFrame = requestAnimationFrame(paint);
   };
   paint();
@@ -248,7 +247,7 @@ function getRecordingSize() {
     : { width: 1920, height: 1080 };
 }
 
-function drawVideoLikePreview(context, video, targetWidth, targetHeight) {
+function drawVideoContain(context, video, targetWidth, targetHeight) {
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
   if (!sourceWidth || !sourceHeight) return;
@@ -256,25 +255,28 @@ function drawVideoLikePreview(context, video, targetWidth, targetHeight) {
   const sourceRatio = sourceWidth / sourceHeight;
   const targetRatio = targetWidth / targetHeight;
 
-  let cropWidth = sourceWidth;
-  let cropHeight = sourceHeight;
-  let cropX = 0;
-  let cropY = 0;
+  let drawWidth = targetWidth;
+  let drawHeight = targetHeight;
+  let drawX = 0;
+  let drawY = 0;
 
   if (sourceRatio > targetRatio) {
-    cropWidth = sourceHeight * targetRatio;
-    cropX = (sourceWidth - cropWidth) / 2;
+    drawHeight = targetWidth / sourceRatio;
+    drawY = (targetHeight - drawHeight) / 2;
   } else {
-    cropHeight = sourceWidth / targetRatio;
-    cropY = (sourceHeight - cropHeight) / 2;
+    drawWidth = targetHeight * sourceRatio;
+    drawX = (targetWidth - drawWidth) / 2;
   }
 
+  context.fillStyle = "#000";
+  context.fillRect(0, 0, targetWidth, targetHeight);
   context.save();
   if (mirrorInput.checked) {
     context.translate(targetWidth, 0);
     context.scale(-1, 1);
+    drawX = targetWidth - drawX - drawWidth;
   }
-  context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
+  context.drawImage(video, 0, 0, sourceWidth, sourceHeight, drawX, drawY, drawWidth, drawHeight);
   context.restore();
 }
 
