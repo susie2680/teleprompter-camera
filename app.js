@@ -16,6 +16,7 @@ const statusText = document.querySelector("#statusText");
 const timer = document.querySelector("#timer");
 const countdown = document.querySelector("#countdown");
 const downloadLink = document.querySelector("#downloadLink");
+const shareButton = document.querySelector("#shareButton");
 
 let stream = null;
 let recorder = null;
@@ -32,6 +33,8 @@ let scriptOffset = 0;
 let isScrolling = false;
 let wakeLock = null;
 let activeRecorderMimeType = "video/mp4";
+let lastRecordingFile = null;
+let lastRecordingUrl = null;
 
 const defaultScript = [
   "大家好，今天我想分享一个很实用的方法。",
@@ -56,6 +59,7 @@ mirrorInput.addEventListener("change", applyVisualSettings);
 autoScrollInput.addEventListener("change", () => {
   if (!autoScrollInput.checked) stopScroll();
 });
+shareButton.addEventListener("click", shareRecording);
 
 window.addEventListener("beforeunload", () => {
   stopCamera();
@@ -147,7 +151,9 @@ async function startRecording() {
   countdown.hidden = true;
   countdown.style.display = "none";
   recordedChunks = [];
+  lastRecordingFile = null;
   downloadLink.hidden = true;
+  shareButton.hidden = true;
   downloadLink.removeAttribute("href");
   downloadLink.removeAttribute("download");
 
@@ -204,12 +210,33 @@ function saveRecording(mimeType) {
 
   const extension = mimeType.includes("mp4") ? "mp4" : "webm";
   const blob = new Blob(recordedChunks, { type: mimeType });
+  if (lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
   const url = URL.createObjectURL(blob);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `提示词相机-${stamp}.${extension}`;
+  lastRecordingUrl = url;
+  lastRecordingFile = new File([blob], filename, { type: mimeType });
+
   downloadLink.href = url;
-  downloadLink.download = `提示词相机-${stamp}.${extension}`;
+  downloadLink.download = filename;
   downloadLink.hidden = false;
   downloadLink.textContent = `下载录制视频（${extension.toUpperCase()}）`;
+  shareButton.hidden = !(navigator.canShare && navigator.canShare({ files: [lastRecordingFile] }));
+  statusText.textContent = "视频已生成";
+}
+
+async function shareRecording() {
+  if (!lastRecordingFile) return;
+
+  try {
+    await navigator.share({
+      files: [lastRecordingFile],
+      title: "提示词相机录制视频"
+    });
+  } catch (error) {
+    if (error && error.name === "AbortError") return;
+    alert("系统分享保存失败，请尝试下面的下载录制视频。");
+  }
 }
 
 function getRecorderOptions() {
