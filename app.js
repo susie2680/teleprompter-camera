@@ -20,10 +20,15 @@ const downloadLink = document.querySelector("#downloadLink");
 let stream = null;
 let recorder = null;
 let recordedChunks = [];
+let recordingStream = null;
+let recordingCanvas = null;
+let recordingContext = null;
+let drawFrame = null;
 let recordingStartedAt = 0;
 let timerId = null;
 let scrollFrame = null;
 let lastScrollFrameAt = 0;
+let scriptOffset = 0;
 let isScrolling = false;
 let wakeLock = null;
 
@@ -138,7 +143,8 @@ async function startRecording() {
   downloadLink.removeAttribute("href");
   downloadLink.removeAttribute("download");
 
-  recorder = new MediaRecorder(stream, { mimeType });
+  recordingStream = createRecordingStream();
+  recorder = new MediaRecorder(recordingStream, { mimeType });
   recorder.addEventListener("dataavailable", (event) => {
     if (event.data && event.data.size > 0) recordedChunks.push(event.data);
   });
@@ -161,6 +167,7 @@ function stopRecording() {
     recorder.stop();
   }
   recorder = null;
+  stopCanvasRecording();
   stopScroll();
   window.clearInterval(timerId);
   timerId = null;
@@ -193,6 +200,72 @@ function getSupportedMimeType() {
   return types.find((type) => window.MediaRecorder && MediaRecorder.isTypeSupported(type));
 }
 
+function createRecordingStream() {
+  if (!HTMLCanvasElement.prototype.captureStream || !preview.videoWidth || !preview.videoHeight) {
+    return stream;
+  }
+
+  const size = getRecordingSize();
+  recordingCanvas = document.createElement("canvas");
+  recordingCanvas.width = size.width;
+  recordingCanvas.height = size.height;
+  recordingContext = recordingCanvas.getContext("2d", { alpha: false });
+
+  const paint = () => {
+    drawVideoCover(recordingContext, preview, recordingCanvas.width, recordingCanvas.height);
+    drawFrame = requestAnimationFrame(paint);
+  };
+  paint();
+
+  const canvasStream = recordingCanvas.captureStream(30);
+  const tracks = [
+    ...canvasStream.getVideoTracks(),
+    ...stream.getAudioTracks()
+  ];
+  return new MediaStream(tracks);
+}
+
+function stopCanvasRecording() {
+  if (drawFrame) cancelAnimationFrame(drawFrame);
+  drawFrame = null;
+
+  if (recordingStream && recordingStream !== stream) {
+    recordingStream.getVideoTracks().forEach((track) => track.stop());
+  }
+  recordingStream = null;
+  recordingCanvas = null;
+  recordingContext = null;
+}
+
+function getRecordingSize() {
+  const isPortrait = window.innerHeight >= window.innerWidth;
+  return isPortrait
+    ? { width: 1080, height: 1920 }
+    : { width: 1920, height: 1080 };
+}
+
+function drawVideoCover(context, video, targetWidth, targetHeight) {
+  const sourceWidth = video.videoWidth;
+  const sourceHeight = video.videoHeight;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = targetWidth / targetHeight;
+
+  let cropWidth = sourceWidth;
+  let cropHeight = sourceHeight;
+  let cropX = 0;
+  let cropY = 0;
+
+  if (sourceRatio > targetRatio) {
+    cropWidth = sourceHeight * targetRatio;
+    cropX = (sourceWidth - cropWidth) / 2;
+  } else {
+    cropHeight = sourceWidth / targetRatio;
+    cropY = (sourceHeight - cropHeight) / 2;
+  }
+
+  context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
+}
+
 function startScroll() {
   if (isScrolling) return;
   isScrolling = true;
@@ -218,7 +291,8 @@ function toggleScroll() {
 }
 
 function resetScroll() {
-  scriptTrack.scrollTop = 0;
+  scriptOffset = 0;
+  scriptText.style.transform = "translateY(0)";
 }
 
 function stepScroll(now) {
@@ -227,10 +301,12 @@ function stepScroll(now) {
   const elapsed = Math.min(80, now - lastScrollFrameAt) / 1000;
   lastScrollFrameAt = now;
   const pixelsPerSecond = Number(speedInput.value);
-  const maxScroll = scriptTrack.scrollHeight - scriptTrack.clientHeight;
+  const readableHeight = scriptTrack.clientHeight - 52;
+  const maxScroll = Math.max(0, scriptText.offsetHeight - readableHeight);
 
-  if (scriptTrack.scrollTop < maxScroll) {
-    scriptTrack.scrollTop += pixelsPerSecond * elapsed;
+  if (scriptOffset < maxScroll) {
+    scriptOffset = Math.min(maxScroll, scriptOffset + pixelsPerSecond * elapsed);
+    scriptText.style.transform = `translateY(${-scriptOffset}px)`;
     scrollFrame = requestAnimationFrame(stepScroll);
   } else {
     stopScroll();
