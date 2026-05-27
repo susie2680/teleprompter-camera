@@ -31,6 +31,7 @@ let lastScrollFrameAt = 0;
 let scriptOffset = 0;
 let isScrolling = false;
 let wakeLock = null;
+let activeRecorderMimeType = "video/mp4";
 
 const defaultScript = [
   "大家好，今天我想分享一个很实用的方法。",
@@ -152,15 +153,16 @@ async function startRecording() {
 
   recordingStream = stream;
   recorder = new MediaRecorder(recordingStream, recorderOptions);
+  activeRecorderMimeType = recorder.mimeType || recorderOptions.mimeType || "video/mp4";
   recorder.addEventListener("dataavailable", (event) => {
     if (event.data && event.data.size > 0) recordedChunks.push(event.data);
   });
   recorder.addEventListener("stop", () => {
-    saveRecording(recorder.mimeType || recorderOptions.mimeType || "video/mp4");
+    saveRecording(activeRecorderMimeType);
     recorder = null;
     recordButton.disabled = false;
   });
-  recorder.start();
+  recorder.start(1000);
 
   recordingStartedAt = Date.now();
   timerId = window.setInterval(updateTimer, 250);
@@ -193,6 +195,13 @@ function stopRecording() {
 }
 
 function saveRecording(mimeType) {
+  if (!recordedChunks.length) {
+    downloadLink.hidden = true;
+    statusText.textContent = "录制失败，请重试";
+    alert("这次录制没有生成视频数据。请刷新页面后重试，或换 Chrome/Safari 最新版测试。");
+    return;
+  }
+
   const extension = mimeType.includes("mp4") ? "mp4" : "webm";
   const blob = new Blob(recordedChunks, { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -204,12 +213,12 @@ function saveRecording(mimeType) {
 }
 
 function getRecorderOptions() {
+  if (isIOS()) return {};
+
   const baseOptions = {
     audioBitsPerSecond: 64000,
     videoBitsPerSecond: 1500000
   };
-
-  if (isIOS()) return baseOptions;
 
   const types = [
     "video/mp4;codecs=h264,aac",
